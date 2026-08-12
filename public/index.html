@@ -20,8 +20,9 @@
         <div class="brand-icon">J</div>
         <div class="brand-title">JayNet Wi-Fi</div>
       </div>
-      <div style="display:flex; align-items:center; gap:12px;">
-        <button class="btn-support" style="background:rgba(0,240,255,0.15); border-color:rgba(0,240,255,0.4); color:var(--accent-cyan);" onclick="openReconnectModal()">🔑 Reconnect with Code</button>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <button class="btn-support" style="background:rgba(0,240,255,0.15); border-color:rgba(0,240,255,0.4); color:var(--accent-cyan);" onclick="openReconnectModal()">🔑 Reconnect Code</button>
+        <a href="admin.html" class="btn-support" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px;">⚙️ Admin</a>
         <div class="status-pill">
           <span class="status-dot"></span>
           <span>Hotspot Active</span>
@@ -48,9 +49,10 @@
         <h4>Need help or connection support?</h4>
         <p>Disconnected before your package ended? Use your <strong>Reconnection Code</strong> or request support below.</p>
       </div>
-      <div style="display:flex; gap:10px;">
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
         <button class="btn-support" onclick="openReconnectModal()">Reconnect Code</button>
         <button class="btn-support" onclick="openSupportModal()">Contact Support</button>
+        <a href="admin.html" class="btn-support" style="text-decoration:none;">Admin Dashboard</a>
       </div>
     </section>
 
