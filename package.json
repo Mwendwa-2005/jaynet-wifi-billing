@@ -1,0 +1,29 @@
+{
+  "name": "jaynet-wifi-billing",
+  "version": "1.0.0",
+  "description": "JayNet Real-Time Wi-Fi Billing & Hotspot Management System with Apple Liquid UI, M-Pesa Daraja STK Push & MikroTik RouterOS API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "wifi-billing",
+    "mikrotik",
+    "mpesa",
+    "daraja",
+    "hotspot",
+    "stk-push",
+    "jaynet"
+  ],
+  "author": "JayNet Systems",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.8",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "sqlite3": "^5.1.7",
+    "ws": "^8.17.0"
+  }
+}

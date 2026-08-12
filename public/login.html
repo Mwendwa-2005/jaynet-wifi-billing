@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="0; url=http://192.168.88.2:3000/?mac=$(mac)&ip=$(ip)&link_login_only=$(link-login-only-esc)">
+  <title>Redirecting to JayNet Wi-Fi Portal...</title>
+  <style>
+    body {
+      background-color: #08090d;
+      color: #fff;
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 4px solid rgba(255,255,255,0.1);
+      border-top-color: #00f0ff;
+      border-radius: 50%;
+      animation: spin 1s infinite linear;
+      margin-bottom: 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="spinner"></div>
+  <h2>Connecting to JayNet Wi-Fi...</h2>
+  <p style="color:#a1a1a6;">Redirecting to payment portal...</p>
+</body>
+</html>

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JayNet Wi-Fi — High Speed Internet Portal</title>
+  <link rel="stylesheet" href="css/liquid.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+</head>
+<body>
+
+  <!-- Floating Organic Apple Liquid Canvas Background -->
+  <canvas id="liquid-canvas"></canvas>
+
+  <div class="app-container">
+
+    <!-- Header Navigation -->
+    <header class="header">
+      <div class="brand">
+        <div class="brand-icon">J</div>
+        <div class="brand-title">JayNet Wi-Fi</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <button class="btn-support" style="background:rgba(0,240,255,0.15); border-color:rgba(0,240,255,0.4); color:var(--accent-cyan);" onclick="openReconnectModal()">🔑 Reconnect with Code</button>
+        <div class="status-pill">
+          <span class="status-dot"></span>
+          <span>Hotspot Active</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+      <span class="hero-badge">⚡ Instant M-Pesa Access</span>
+      <h1 class="hero-title">Ultra-Fast Wi-Fi Connection</h1>
+      <p class="hero-subtitle">Select your preferred internet package below. Enter your phone number for an automatic Safaricom M-Pesa STK Push to get connected instantly!</p>
+    </section>
+
+    <!-- Dynamic Packages Grid -->
+    <div id="packages-grid" class="packages-grid">
+      <!-- Loaded dynamically via app.js -->
+      <div class="loader-spinner"></div>
+    </div>
+
+    <!-- Customer Support Banner -->
+    <section class="support-card">
+      <div class="support-info">
+        <h4>Need help or connection support?</h4>
+        <p>Disconnected before your package ended? Use your <strong>Reconnection Code</strong> or request support below.</p>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-support" onclick="openReconnectModal()">Reconnect Code</button>
+        <button class="btn-support" onclick="openSupportModal()">Contact Support</button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- STK Push Payment Modal -->
+  <div id="payment-modal" class="modal-overlay">
+    <div class="modal-card">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+
+      <!-- Step 1: Input Phone Number -->
+      <div id="payment-step-input">
+        <h3 class="modal-title">Pay via M-Pesa STK Push</h3>
+        <p class="modal-subtitle">Package: <strong id="modal-package-name" style="color:var(--accent-cyan);"></strong> (<span id="modal-package-price"></span>)</p>
+
+        <form id="stk-form">
+          <div class="form-group">
+            <label class="form-label" for="phone-number">Safaricom M-Pesa Phone Number</label>
+            <input type="tel" id="phone-number" class="form-input" placeholder="e.g. 0712345678 or 0143578157" required pattern="^(07|01|2547|2541|\+254)[0-9]{8}$">
+            <small style="color: var(--text-muted); font-size:12px; margin-top:4px; display:block;">An STK Push prompt will be sent directly to your phone.</small>
+          </div>
+          <button type="submit" class="btn-submit">Pay with M-Pesa</button>
+        </form>
+      </div>
+
+      <!-- Step 2: Waiting for M-Pesa PIN -->
+      <div id="payment-step-waiting" style="display:none; text-align:center;">
+        <h3 class="modal-title">Check Your Phone</h3>
+        <div class="loader-spinner"></div>
+        <p id="waiting-msg" style="color: var(--text-secondary); margin-bottom: 16px;"></p>
+        <p style="font-size:13px; color:var(--text-muted);">Please enter your Safaricom M-Pesa PIN on your phone handset to authorize the transaction.</p>
+      </div>
+
+      <!-- Step 3: Payment Success & Auto-Connect -->
+      <div id="payment-step-success" style="display:none; text-align:center;">
+        <div style="font-size: 54px; margin-bottom: 10px;">🎉</div>
+        <h3 class="modal-title" style="color: var(--accent-emerald);">Payment Approved!</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 16px;">You are now connected to <strong>JayNet High-Speed Wi-Fi</strong>.</p>
+        
+        <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: var(--radius-md); text-align:left; margin-bottom: 16px;">
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Package: <strong id="success-pkg-name" style="color:#fff;"></strong></p>
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">M-Pesa Receipt: <strong id="success-receipt" style="color:var(--accent-cyan);"></strong></p>
+        </div>
+
+        <div id="reconnect-code-box" style="background: rgba(0,240,255,0.12); border:1px dashed var(--accent-cyan); padding: 16px; border-radius: var(--radius-md); margin-bottom: 20px; text-align:center;">
+          <p style="font-size: 12px; color: var(--accent-cyan); font-weight:700; text-transform:uppercase; letter-spacing:1px;">🔑 RECONNECTION VOUCHER CODE:</p>
+          <div id="success-voucher-code" style="font-size: 28px; font-weight:900; color:#fff; letter-spacing:2px; margin: 6px 0;">JN-000000</div>
+          <small style="color: var(--text-secondary); font-size:12px;">Save or screenshot this code! If you get disconnected, use this code on the website to reconnect instantly.</small>
+        </div>
+
+        <button class="btn-submit" onclick="window.location.reload()">Start Browsing Internet</button>
+      </div>
+
+      <!-- Step 4: Payment Failed -->
+      <div id="payment-step-error" style="display:none; text-align:center;">
+        <div style="font-size: 54px; margin-bottom: 10px;">⚠️</div>
+        <h3 class="modal-title" style="color: #ff5252;">Transaction Error</h3>
+        <p id="error-message-text" style="color: var(--text-secondary); margin-bottom: 20px;"></p>
+        <button class="btn-select" onclick="openPaymentModal(selectedPackage.id, selectedPackage.name, selectedPackage.price)">Try Again</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Reconnect with Code Modal -->
+  <div id="reconnect-modal" class="modal-overlay">
+    <div class="modal-card">
+      <button class="modal-close" onclick="closeReconnectModal()">✕</button>
+      <h3 class="modal-title">Reconnect Active Wi-Fi</h3>
+      <p class="modal-subtitle">Disconnected before your package ended? Enter your <strong>Reconnection Code</strong> (e.g. JN-849201) or <strong>Phone Number</strong> to restore internet access.</p>
+
+      <form id="reconnect-form">
+        <div class="form-group">
+          <label class="form-label">Reconnection Code or Phone Number</label>
+          <input type="text" id="reconnect-code-input" class="form-input" placeholder="e.g. JN-849201 or 07XXXXXXXX" required>
+        </div>
+        <button type="submit" class="btn-submit">Restore Internet Connection</button>
+      </form>
+
+      <div id="reconnect-result" style="display:none; margin-top: 20px; padding: 14px; border-radius: var(--radius-md); text-align:center;"></div>
+    </div>
+  </div>
+
+  <!-- Customer Support Ticket Modal -->
+  <div id="support-modal" class="modal-overlay">
+    <div class="modal-card">
+      <button class="modal-close" onclick="closeSupportModal()">✕</button>
+      <h3 class="modal-title">JayNet Customer Support</h3>
+      <p class="modal-subtitle">Facing connection issues? Submit a ticket and our router system will verify your session.</p>
+
+      <form id="support-form">
+        <div class="form-group">
+          <label class="form-label">Phone Number used for Payment</label>
+          <input type="tel" id="support-phone" class="form-input" placeholder="07XXXXXXXX" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Issue Type</label>
+          <select id="support-type" class="form-input" style="background:#1a1d28;">
+            <option value="Paid but No Internet">Paid but No Internet Access</option>
+            <option value="Slow Speed">Slow Speed / Disconnections</option>
+            <option value="STK Push Didn't Arrive">M-Pesa STK Push Didn't Arrive</option>
+            <option value="Other">Other Query</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Describe the problem</label>
+          <textarea id="support-desc" class="form-input" rows="3" placeholder="Briefly describe what happened..." required></textarea>
+        </div>
+        <button type="submit" class="btn-submit">Submit Support Ticket</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/liquid-canvas.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

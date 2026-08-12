@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JayNet Admin — Wi-Fi Billing & Router Control</title>
+  <link rel="stylesheet" href="css/liquid.css">
+  <style>
+    .admin-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      padding: 20px 24px;
+    }
+    .metric-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+    .metric-value {
+      font-size: 32px;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .admin-nav {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border-glass);
+      padding-bottom: 12px;
+      overflow-x: auto;
+    }
+    .admin-nav-btn {
+      padding: 10px 20px;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      transition: all 0.3s ease;
+      white-space: nowrap;
+    }
+    .admin-nav-btn.active, .admin-nav-btn:hover {
+      background: rgba(0, 240, 255, 0.15);
+      color: var(--accent-cyan);
+    }
+
+    .admin-section {
+      display: none;
+    }
+    .admin-section.active {
+      display: block;
+    }
+
+    .data-table-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      overflow-x: auto;
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+    table.data-table th, table.data-table td {
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 14px;
+    }
+    table.data-table th {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .badge-completed, .badge-success { background: rgba(0,230,118,0.2); color: #00e676; }
+    .badge-pending, .badge-warning { background: rgba(255,193,7,0.2); color: #ffc107; }
+    .badge-failed, .badge-inactive { background: rgba(255,82,82,0.2); color: #ff5252; }
+
+    .btn-action {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      margin-right: 6px;
+    }
+    .btn-action.edit { background: rgba(0,113,227,0.3); color: #60a5fa; }
+    .btn-action.delete { background: rgba(255,82,82,0.3); color: #f87171; }
+
+    .status-pill.offline {
+      background: rgba(255, 82, 82, 0.1);
+      border-color: rgba(255, 82, 82, 0.3);
+      color: #ff5252;
+    }
+    .status-dot.offline {
+      background-color: #ff5252;
+      box-shadow: 0 0 10px #ff5252;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="liquid-canvas"></canvas>
+
+  <div class="app-container">
+
+    <!-- Header Navigation -->
+    <header class="header">
+      <div class="brand">
+        <div class="brand-icon">J</div>
+        <div>
+          <div class="brand-title">JayNet Admin Control</div>
+          <small style="color:var(--text-secondary); font-size:12px;">Real-Time Wi-Fi Billing & RouterOS Dashboard</small>
+        </div>
+      </div>
+      <div id="router-status-indicator" class="status-pill">
+        <span class="status-dot"></span>
+        <span>Checking Router...</span>
+      </div>
+    </header>
+
+    <!-- Metrics Cards -->
+    <div class="admin-metrics">
+      <div class="metric-card">
+        <div class="metric-label">Total M-Pesa Revenue</div>
+        <div id="metric-revenue" class="metric-value">KES 0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Active Wi-Fi Sessions</div>
+        <div id="metric-sessions" class="metric-value">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Total Transactions</div>
+        <div id="metric-transactions" class="metric-value">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Open Support Tickets</div>
+        <div id="metric-tickets" class="metric-value">0</div>
+      </div>
+    </div>
+
+    <!-- Admin Navigation Tabs -->
+    <nav class="admin-nav">
+      <button class="admin-nav-btn active" data-target="section-packages">Wi-Fi Packages</button>
+      <button class="admin-nav-btn" data-target="section-transactions">Live Transactions</button>
+      <button class="admin-nav-btn" data-target="section-sessions">Active Sessions & Codes</button>
+      <button class="admin-nav-btn" data-target="section-support">Support Tickets</button>
+      <button class="admin-nav-btn" data-target="section-settings">Settings & Integrations</button>
+    </nav>
+
+    <!-- Section 1: Packages -->
+    <section id="section-packages" class="admin-section active">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
+        <h2>Wi-Fi Packages Management</h2>
+        <button class="btn-submit" style="width:auto; padding:10px 20px;" onclick="openAddPackageModal()">+ Add New Package</button>
+      </div>
+
+      <div class="data-table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Package Name</th>
+              <th>Price</th>
+              <th>Duration</th>
+              <th>Speed Limits</th>
+              <th>Devices</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="packages-tbody">
+            <!-- Loaded dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 2: Transactions -->
+    <section id="section-transactions" class="admin-section">
+      <h2 style="margin-bottom: 16px;">Live M-Pesa Transactions Log</h2>
+      <div class="data-table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Txn ID</th>
+              <th>Phone Number</th>
+              <th>Package</th>
+              <th>Amount</th>
+              <th>Reconnection Code</th>
+              <th>Receipt / Checkout ID</th>
+              <th>Status</th>
+              <th>Date & Time</th>
+            </tr>
+          </thead>
+          <tbody id="transactions-tbody">
+            <!-- Loaded dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 3: Active Sessions -->
+    <section id="section-sessions" class="admin-section">
+      <h2 style="margin-bottom: 16px;">Connected Wi-Fi Sessions & Reconnection Codes</h2>
+      <div class="data-table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Reconnection Code</th>
+              <th>Phone Number</th>
+              <th>Package</th>
+              <th>MAC Address</th>
+              <th>Status</th>
+              <th>End Time</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="sessions-tbody">
+            <!-- Loaded dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 4: Support Tickets -->
+    <section id="section-support" class="admin-section">
+      <h2 style="margin-bottom: 16px;">Customer Support Tickets</h2>
+      <div class="data-table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Ticket ID</th>
+              <th>Phone Number</th>
+              <th>Issue Type</th>
+              <th>Description</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="support-tbody">
+            <!-- Loaded dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 5: Settings -->
+    <section id="section-settings" class="admin-section">
+      <h2 style="margin-bottom: 20px;">System Settings & API Configuration</h2>
+
+      <form id="settings-form" onsubmit="saveSettings(event)" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+
+        <!-- MikroTik Settings Box -->
+        <div style="background:var(--bg-card); border:1px solid var(--border-glass); padding:24px; border-radius:var(--radius-md);">
+          <h3 style="margin-bottom:16px; color:var(--accent-cyan);">MikroTik RouterOS API Settings</h3>
+
+          <div class="form-group">
+            <label class="form-label">MikroTik Router IP Address</label>
+            <input type="text" id="set-mikrotik-host" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">API Port (Default: 8728)</label>
+            <input type="number" id="set-mikrotik-port" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Router Username</label>
+            <input type="text" id="set-mikrotik-user" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Router Password</label>
+            <input type="password" id="set-mikrotik-pass" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Hotspot Server Name</label>
+            <input type="text" id="set-mikrotik-server" class="form-input" value="all">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Router Mode</label>
+            <select id="set-mikrotik-sim" class="form-input" style="background:#1a1d28;">
+              <option value="true">Simulation / Virtual Hotspot Mode (For VS Code Testing)</option>
+              <option value="false">Live MikroTik Hardware RouterOS API</option>
+            </select>
+          </div>
+
+          <button type="button" class="btn-support" style="width:100%; margin-top:10px;" onclick="testMikroTikConnection()">Test Router Connection</button>
+          <div id="mikrotik-test-result" style="font-size:13px; margin-top:8px;"></div>
+        </div>
+
+        <!-- Safaricom Daraja Settings Box -->
+        <div style="background:var(--bg-card); border:1px solid var(--border-glass); padding:24px; border-radius:var(--radius-md);">
+          <h3 style="margin-bottom:16px; color:var(--accent-emerald);">Safaricom M-Pesa Daraja API Settings</h3>
+
+          <div class="form-group">
+            <label class="form-label">Daraja Environment</label>
+            <select id="set-mpesa-env" class="form-input" style="background:#1a1d28;">
+              <option value="sandbox">Sandbox (Testing)</option>
+              <option value="production">Production (Live Payments)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Consumer Key</label>
+            <input type="text" id="set-mpesa-key" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Consumer Secret</label>
+            <input type="password" id="set-mpesa-secret" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Passkey (Lipa Na M-Pesa Online)</label>
+            <input type="text" id="set-mpesa-passkey" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Shortcode / Paybill / Till Number</label>
+            <input type="text" id="set-mpesa-shortcode" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Public Callback URL (Webhook)</label>
+            <input type="url" id="set-mpesa-callback" class="form-input" placeholder="https://your-localtunnel-domain.loca.lt/api/mpesa/callback">
+          </div>
+
+          <button type="submit" class="btn-submit" style="width:100%; margin-top:24px;">Save All Settings</button>
+        </div>
+
+      </form>
+    </section>
+
+  </div>
+
+  <!-- Package Add/Edit Modal -->
+  <div id="package-modal" class="modal-overlay">
+    <div class="modal-card">
+      <button class="modal-close" onclick="closePackageModal()">✕</button>
+      <h3 id="pkg-modal-title" class="modal-title">Add Wi-Fi Package</h3>
+
+      <form onsubmit="savePackage(event)">
+        <input type="hidden" id="pkg-id">
+        <div class="form-group">
+          <label class="form-label">Package Name</label>
+          <input type="text" id="pkg-name" class="form-input" placeholder="e.g. 15Mbps Monthly Unlimited" required>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Price (KES)</label>
+            <input type="number" id="pkg-price" class="form-input" placeholder="2000" required min="1">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Duration (Hours)</label>
+            <input type="number" id="pkg-duration" class="form-input" placeholder="720" required step="0.1" min="0.1">
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Download Speed</label>
+            <input type="text" id="pkg-download" class="form-input" placeholder="e.g. 15M">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Upload Speed</label>
+            <input type="text" id="pkg-upload" class="form-input" placeholder="e.g. 10M">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Max Allowed Devices</label>
+          <input type="number" id="pkg-devices" class="form-input" value="3" min="1">
+        </div>
+        <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+          <input type="checkbox" id="pkg-active" checked style="width:18px; height:18px;">
+          <label for="pkg-active" class="form-label" style="margin:0;">Active & Visible to Clients</label>
+        </div>
+        <button type="submit" class="btn-submit">Save Package</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/liquid-canvas.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
