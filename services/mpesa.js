@@ -20,7 +20,8 @@ function normalizePhoneNumber(phone) {
  */
 async function getMpesaConfig() {
   const envSetting = await db.get("SELECT value FROM settings WHERE key = 'MPESA_ENVIRONMENT'");
-  const isSandbox = (envSetting?.value || process.env.MPESA_ENVIRONMENT || 'sandbox') === 'sandbox';
+  const envValue = (envSetting?.value || process.env.MPESA_ENVIRONMENT || 'sandbox').trim().toLowerCase();
+  const isSandbox = envValue === 'sandbox';
 
   const consumerKey = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_CONSUMER_KEY'"))?.value || process.env.MPESA_CONSUMER_KEY || '';
   const consumerSecret = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_CONSUMER_SECRET'"))?.value || process.env.MPESA_CONSUMER_SECRET || '';
@@ -37,11 +38,11 @@ async function getMpesaConfig() {
 
   return {
     isSandbox,
-    consumerKey,
-    consumerSecret,
-    passkey,
-    shortcode,
-    callbackUrl,
+    consumerKey: consumerKey.trim(),
+    consumerSecret: consumerSecret.trim(),
+    passkey: passkey.trim(),
+    shortcode: shortcode.trim(),
+    callbackUrl: callbackUrl.trim(),
     forceSimulation,
     baseUrl
   };
@@ -56,7 +57,7 @@ async function getOAuthToken() {
     throw new Error('Safaricom Daraja API credentials not configured. Please enter your Consumer Key & Secret in Admin Panel Settings.');
   }
 
-  const auth = Buffer.from(`${config.consumerKey.trim()}:${config.consumerSecret.trim()}`).toString('base64');
+  const auth = Buffer.from(`${config.consumerKey}:${config.consumerSecret}`).toString('base64');
   try {
     const response = await axios.get(`${config.baseUrl}/oauth/v1/generate?grant_type=client_credentials`, {
       headers: {
@@ -66,7 +67,8 @@ async function getOAuthToken() {
     return response.data.access_token;
   } catch (error) {
     console.error('[M-Pesa OAuth Error]:', error.response?.data || error.message);
-    throw new Error(error.response?.data?.errorMessage || 'Failed to generate M-Pesa OAuth token. Verify Consumer Key & Secret in Admin Settings.');
+    const envName = config.isSandbox ? 'Sandbox' : 'Production';
+    throw new Error(`Invalid Access Token for ${envName} mode. Ensure your Consumer Key & Secret match the selected Environment (${envName}) in Admin Settings.`);
   }
 }
 
@@ -118,16 +120,16 @@ async function initiateStkPush({ phone, amount, packageId, packageName, macAddre
     String(date.getSeconds()).padStart(2, '0');
 
   const passkey = config.passkey || 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919';
-  const password = Buffer.from(`${config.shortcode.trim()}${passkey.trim()}${timestamp}`).toString('base64');
+  const password = Buffer.from(`${config.shortcode}${passkey}${timestamp}`).toString('base64');
 
   const payload = {
-    BusinessShortCode: config.shortcode.trim(),
+    BusinessShortCode: config.shortcode,
     Password: password,
     Timestamp: timestamp,
     TransactionType: 'CustomerPayBillOnline',
     Amount: Math.ceil(amount),
     PartyA: normalizedPhone,
-    PartyB: config.shortcode.trim(),
+    PartyB: config.shortcode,
     PhoneNumber: normalizedPhone,
     CallBackURL: config.callbackUrl || 'https://example.com/callback',
     AccountReference: `JayNet-${packageName.replace(/\s+/g, '')}`,
