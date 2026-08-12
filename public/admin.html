@@ -121,7 +121,26 @@
 
   <canvas id="liquid-canvas"></canvas>
 
-  <div class="app-container">
+  <!-- Admin Login Security Overlay -->
+  <div id="admin-auth-overlay" class="modal-overlay active">
+    <div class="modal-card">
+      <div style="font-size:42px; text-align:center; margin-bottom:12px;">🔒</div>
+      <h3 class="modal-title" style="text-align:center;">Admin Authentication</h3>
+      <p class="modal-subtitle" style="text-align:center;">Enter your master admin password to access JayNet Control Panel.</p>
+
+      <form id="admin-login-form">
+        <div class="form-group">
+          <label class="form-label">Master Admin Password</label>
+          <input type="password" id="admin-pass-input" class="form-input" placeholder="Enter Admin Password" required autofocus>
+        </div>
+        <button type="submit" class="btn-submit">Login to Admin Panel</button>
+        <p id="auth-error-msg" style="color:#ff5252; font-size:13px; text-align:center; margin-top:12px; display:none;"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Protected Admin App Container -->
+  <div id="protected-admin-content" class="app-container" style="display:none;">
 
     <!-- Header Navigation -->
     <header class="header">
@@ -132,9 +151,12 @@
           <small style="color:var(--text-secondary); font-size:12px;">Real-Time Wi-Fi Billing & RouterOS Dashboard</small>
         </div>
       </div>
-      <div id="router-status-indicator" class="status-pill">
-        <span class="status-dot"></span>
-        <span>Checking Router...</span>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <button class="btn-action delete" style="padding:8px 16px;" onclick="adminLogout()">Logout</button>
+        <div id="router-status-indicator" class="status-pill">
+          <span class="status-dot"></span>
+          <span>Checking Router...</span>
+        </div>
       </div>
     </header>
 
@@ -296,7 +318,7 @@
           <div class="form-group">
             <label class="form-label">Router Mode</label>
             <select id="set-mikrotik-sim" class="form-input" style="background:#1a1d28;">
-              <option value="true">Simulation / Virtual Hotspot Mode (For VS Code Testing)</option>
+              <option value="true">Simulation / Virtual Hotspot Mode (For Testing)</option>
               <option value="false">Live MikroTik Hardware RouterOS API</option>
             </select>
           </div>
@@ -308,6 +330,11 @@
         <!-- Safaricom Daraja Settings Box -->
         <div style="background:var(--bg-card); border:1px solid var(--border-glass); padding:24px; border-radius:var(--radius-md);">
           <h3 style="margin-bottom:16px; color:var(--accent-emerald);">Safaricom M-Pesa Daraja API Settings</h3>
+
+          <div class="form-group">
+            <label class="form-label">Admin Security Password</label>
+            <input type="password" id="set-admin-pass" class="form-input" placeholder="Change Admin Password (Default: admin123)">
+          </div>
 
           <div class="form-group">
             <label class="form-label">Daraja Environment</label>
@@ -330,11 +357,11 @@
           </div>
           <div class="form-group">
             <label class="form-label">Shortcode / Paybill / Till Number</label>
-            <input type="text" id="set-mpesa-shortcode" class="form-input">
+            <input type="text" id="set-mpesa-shortcode" class="form-input" placeholder="e.g. 174379 or your Till Number">
           </div>
           <div class="form-group">
             <label class="form-label">Public Callback URL (Webhook)</label>
-            <input type="url" id="set-mpesa-callback" class="form-input" placeholder="https://your-localtunnel-domain.loca.lt/api/mpesa/callback">
+            <input type="url" id="set-mpesa-callback" class="form-input" placeholder="https://jaynet-wifi-billing.onrender.com/api/mpesa/callback">
           </div>
 
           <button type="submit" class="btn-submit" style="width:100%; margin-top:24px;">Save All Settings</button>

@@ -25,7 +25,7 @@ wss.on('connection', (ws) => {
   clients.add(ws);
   ws.send(JSON.stringify({ type: 'CONNECTED', message: 'JayNet Real-time WebSocket Service Connected.' }));
 
-  ws.on('close', () => clients.delete(ws));
+  ws.onclose = () => clients.delete(ws));
 });
 
 function broadcast(data) {
@@ -77,13 +77,12 @@ app.post('/api/stk-push', async (req, res) => {
       macAddress: macAddress || '00:00:00:00:00:00'
     });
 
-    // Handle Simulation Mode Auto-Approve for Instant Testing
+    // Handle Simulation Mode Auto-Approve ONLY IF explicitly in simulation mode
     if (result.isSimulation) {
       setTimeout(async () => {
         try {
           const mpesaReceipt = 'SIM' + Math.random().toString(36).substring(2, 10).toUpperCase();
 
-          // Activate MikroTik Session & generate Reconnection Voucher Code
           const activation = await mikrotikService.activateHotspotUser({
             phone,
             macAddress,
@@ -98,7 +97,6 @@ app.post('/api/stk-push', async (req, res) => {
             [mpesaReceipt, activation.voucherCode, result.checkoutRequestId]
           );
 
-          // Broadcast WebSocket update
           broadcast({
             type: 'PAYMENT_SUCCESS',
             checkoutRequestId: result.checkoutRequestId,
@@ -238,6 +236,25 @@ app.post('/api/support', async (req, res) => {
 // -------------------------------------------------------------
 // ADMIN MANAGEMENT & CONTROL API ENDPOINTS
 // -------------------------------------------------------------
+
+/**
+ * Admin Login Authentication Endpoint
+ */
+app.post('/api/admin/login', async (req, res) => {
+  try {
+    const { password } = req.body;
+    const adminPassSetting = await db.get("SELECT value FROM settings WHERE key = 'ADMIN_PASSWORD'");
+    const validPassword = adminPassSetting?.value || process.env.ADMIN_PASSWORD || 'admin123';
+
+    if (password === validPassword) {
+      res.json({ success: true, token: 'authenticated' });
+    } else {
+      res.status(401).json({ success: false, error: 'Incorrect Admin Password.' });
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 /**
  * Admin Dashboard Metrics
@@ -399,6 +416,7 @@ app.get('/api/admin/settings', async (req, res) => {
     settings.forEach(s => (settingsObj[s.key] = s.value));
 
     const responseSettings = {
+      ADMIN_PASSWORD: settingsObj.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || 'admin123',
       MPESA_ENVIRONMENT: settingsObj.MPESA_ENVIRONMENT || process.env.MPESA_ENVIRONMENT || 'sandbox',
       MPESA_CONSUMER_KEY: settingsObj.MPESA_CONSUMER_KEY || process.env.MPESA_CONSUMER_KEY || '',
       MPESA_CONSUMER_SECRET: settingsObj.MPESA_CONSUMER_SECRET || process.env.MPESA_CONSUMER_SECRET || '',

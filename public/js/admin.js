@@ -3,8 +3,54 @@
  */
 
 let ws = null;
+let isAuthenticated = false;
 
 document.addEventListener('DOMContentLoaded', () => {
+  setupAdminLogin();
+  setupAdminNavigation();
+});
+
+/**
+ * Handle Admin Password Authentication
+ */
+function setupAdminLogin() {
+  const savedToken = sessionStorage.getItem('jaynet_admin_token');
+  if (savedToken === 'authenticated') {
+    grantAccess();
+  }
+
+  document.getElementById('admin-login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const passInput = document.getElementById('admin-pass-input').value.trim();
+    const errorMsg = document.getElementById('auth-error-msg');
+
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: passInput })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        sessionStorage.setItem('jaynet_admin_token', 'authenticated');
+        grantAccess();
+      } else {
+        errorMsg.style.display = 'block';
+        errorMsg.innerText = data.error || 'Incorrect Admin Password.';
+      }
+    } catch (err) {
+      errorMsg.style.display = 'block';
+      errorMsg.innerText = 'Authentication server error.';
+    }
+  });
+}
+
+function grantAccess() {
+  isAuthenticated = true;
+  document.getElementById('admin-auth-overlay').classList.remove('active');
+  document.getElementById('protected-admin-content').style.display = 'block';
+
   initAdminWebSocket();
   loadMetrics();
   loadPackages();
@@ -12,8 +58,12 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSessions();
   loadSupportTickets();
   loadSettings();
-  setupAdminNavigation();
-});
+}
+
+function adminLogout() {
+  sessionStorage.removeItem('jaynet_admin_token');
+  window.location.reload();
+}
 
 /**
  * Real-time Admin Updates via WebSocket
@@ -348,6 +398,7 @@ async function loadSettings() {
 
     if (data.success) {
       const s = data.settings;
+      document.getElementById('set-admin-pass').value = s.ADMIN_PASSWORD || '';
       document.getElementById('set-mpesa-env').value = s.MPESA_ENVIRONMENT || 'sandbox';
       document.getElementById('set-mpesa-key').value = s.MPESA_CONSUMER_KEY || '';
       document.getElementById('set-mpesa-secret').value = s.MPESA_CONSUMER_SECRET || '';
@@ -384,6 +435,11 @@ async function saveSettings(e) {
     MIKROTIK_HOTSPOT_SERVER: document.getElementById('set-mikrotik-server').value.trim(),
     MIKROTIK_SIMULATION_MODE: document.getElementById('set-mikrotik-sim').value
   };
+
+  const newAdminPass = document.getElementById('set-admin-pass').value.trim();
+  if (newAdminPass) {
+    settingsObj.ADMIN_PASSWORD = newAdminPass;
+  }
 
   try {
     const res = await fetch('/api/admin/settings', {
