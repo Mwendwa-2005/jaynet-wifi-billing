@@ -48,6 +48,29 @@ function initDB() {
       )
     `);
 
+    // Ensure all standard packages exist
+    const allDefaultPackages = [
+      ['JayNet 3-Hour Express', 10, 3, '5M', '2M', 1],
+      ['JayNet 12-Hour Pass', 20, 12, '8M', '3M', 1],
+      ['JayNet 24-Hour Unlimited', 50, 24, '10M', '5M', 1],
+      ['JayNet 7-Day Ultra', 200, 168, '15M', '10M', 2],
+      ['JayNet 15Mbps Monthly Unlimited', 2000, 720, '15M', '10M', 3],
+      ['JayNet 20Mbps Monthly Unlimited', 2500, 720, '20M', '10M', 4],
+      ['JayNet 30Mbps Monthly Unlimited', 3500, 720, '30M', '15M', 5]
+    ];
+
+    allDefaultPackages.forEach(([name, price, duration, dl, ul, devices]) => {
+      db.get('SELECT COUNT(*) as count FROM packages WHERE name = ?', [name], (err, row) => {
+        if (!err && row.count === 0) {
+          db.run(
+            `INSERT INTO packages (name, price, duration_hours, download_speed, upload_speed, device_limit)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [name, price, duration, dl, ul, devices]
+          );
+        }
+      });
+    });
+
     // 2. Transactions Table
     db.run(`
       CREATE TABLE IF NOT EXISTS transactions (
@@ -86,24 +109,6 @@ function initDB() {
     // Safely add voucher_code column to existing databases if missing
     db.run("ALTER TABLE sessions ADD COLUMN voucher_code TEXT", () => {});
     db.run("ALTER TABLE transactions ADD COLUMN voucher_code TEXT", () => {});
-
-    // Seed Monthly Unlimited Packages if not exists
-    db.get('SELECT COUNT(*) as count FROM packages WHERE price >= 2000', (err, row) => {
-      if (!err && row.count === 0) {
-        const monthlyPackages = [
-          ['JayNet 15Mbps Monthly Unlimited', 2000, 720, '15M', '10M', 3],
-          ['JayNet 20Mbps Monthly Unlimited', 2500, 720, '20M', '10M', 4],
-          ['JayNet 30Mbps Monthly Unlimited', 3500, 720, '30M', '15M', 5]
-        ];
-        const stmt = db.prepare(`
-          INSERT INTO packages (name, price, duration_hours, download_speed, upload_speed, device_limit)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `);
-        monthlyPackages.forEach(pkg => stmt.run(pkg));
-        stmt.finalize();
-        console.log('[JayNet DB] Seeded Monthly Unlimited packages (2000 KES, 2500 KES, 3500 KES).');
-      }
-    });
 
     // 4. Support Tickets Table
     db.run(`
