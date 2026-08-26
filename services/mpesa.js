@@ -20,14 +20,20 @@ function normalizePhoneNumber(phone) {
  */
 async function getMpesaConfig() {
   const envSetting = await db.get("SELECT value FROM settings WHERE key = 'MPESA_ENVIRONMENT'");
-  const envValue = (envSetting?.value || process.env.MPESA_ENVIRONMENT || 'sandbox').trim().toLowerCase();
-  const isSandbox = envValue === 'sandbox';
+  const envVal = (envSetting?.value || process.env.MPESA_ENVIRONMENT || 'sandbox').trim().toLowerCase();
+  const isSandbox = envVal === 'sandbox';
 
-  const consumerKey = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_CONSUMER_KEY'"))?.value || process.env.MPESA_CONSUMER_KEY || '';
-  const consumerSecret = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_CONSUMER_SECRET'"))?.value || process.env.MPESA_CONSUMER_SECRET || '';
-  const passkey = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_PASSKEY'"))?.value || process.env.MPESA_PASSKEY || '';
-  const shortcode = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_SHORTCODE'"))?.value || process.env.MPESA_SHORTCODE || '174379';
-  const callbackUrl = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_CALLBACK_URL'"))?.value || process.env.MPESA_CALLBACK_URL || '';
+  const rawKey = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_CONSUMER_KEY'"))?.value || process.env.MPESA_CONSUMER_KEY || '';
+  const rawSecret = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_CONSUMER_SECRET'"))?.value || process.env.MPESA_CONSUMER_SECRET || '';
+  const rawPasskey = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_PASSKEY'"))?.value || process.env.MPESA_PASSKEY || '';
+  const rawShortcode = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_SHORTCODE'"))?.value || process.env.MPESA_SHORTCODE || '';
+  const rawCallbackUrl = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_CALLBACK_URL'"))?.value || process.env.MPESA_CALLBACK_URL || '';
+
+  const consumerKey = rawKey.trim();
+  const consumerSecret = rawSecret.trim();
+  const passkey = rawPasskey.trim() || (isSandbox ? 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919' : '');
+  const shortcode = rawShortcode.trim() || (isSandbox ? '174379' : '');
+  const callbackUrl = rawCallbackUrl.trim();
 
   const simSetting = await db.get("SELECT value FROM settings WHERE key = 'MPESA_FORCE_SIMULATION'");
   const forceSimulation = simSetting ? simSetting.value === 'true' : false;
@@ -38,11 +44,11 @@ async function getMpesaConfig() {
 
   return {
     isSandbox,
-    consumerKey: consumerKey.trim(),
-    consumerSecret: consumerSecret.trim(),
-    passkey: passkey.trim(),
-    shortcode: shortcode.trim(),
-    callbackUrl: callbackUrl.trim(),
+    consumerKey,
+    consumerSecret,
+    passkey,
+    shortcode,
+    callbackUrl,
     forceSimulation,
     baseUrl
   };
@@ -54,7 +60,7 @@ async function getMpesaConfig() {
 async function getOAuthToken() {
   const config = await getMpesaConfig();
   if (!config.consumerKey || !config.consumerSecret || config.consumerKey === 'YOUR_DARJA_CONSUMER_KEY') {
-    throw new Error('Safaricom Daraja API credentials not configured. Please enter your Consumer Key & Secret in Admin Panel Settings.');
+    throw new Error('Safaricom Daraja credentials not configured. Please enter your Consumer Key & Secret in Admin Panel Settings.');
   }
 
   const auth = Buffer.from(`${config.consumerKey}:${config.consumerSecret}`).toString('base64');
@@ -64,11 +70,19 @@ async function getOAuthToken() {
         Authorization: `Basic ${auth}`
       }
     });
+
+    if (!response.data || !response.data.access_token) {
+      throw new Error('No access_token returned by Safaricom OAuth API.');
+    }
     return response.data.access_token;
   } catch (error) {
     console.error('[M-Pesa OAuth Error]:', error.response?.data || error.message);
-    const envName = config.isSandbox ? 'Sandbox' : 'Production';
-    throw new Error(`Invalid Access Token for ${envName} mode. Ensure your Consumer Key & Secret match the selected Environment (${envName}) in Admin Settings.`);
+    const apiError = error.response?.data?.errorMessage || error.response?.data?.error_description || error.message;
+    
+    if (apiError.includes('Invalid') || error.response?.status === 400 || error.response?.status === 401) {
+      throw new Error(`Invalid Daraja Credentials or Environment Mismatch (${config.isSandbox ? 'Sandbox' : 'Production'} mode). Ensure your Consumer Key & Secret match the selected environment in Admin Settings.`);
+    }
+    throw new Error(`Safaricom OAuth Error: ${apiError}`);
   }
 }
 
@@ -88,7 +102,6 @@ async function initiateStkPush({ phone, amount, packageId, packageName, macAddre
                          config.consumerKey !== 'YOUR_DARJA_CONSUMER_KEY' &&
                          !config.forceSimulation;
 
-  // Run Simulation ONLY if no real credentials exist OR simulation explicitly forced
   if (!hasCredentials) {
     console.log('[M-Pesa] Credentials missing or simulation forced. Running STK Push in Simulation Mode.');
     const mockCheckoutId = 'ws_CO_SIM_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
@@ -119,8 +132,7 @@ async function initiateStkPush({ phone, amount, packageId, packageName, macAddre
     String(date.getMinutes()).padStart(2, '0') +
     String(date.getSeconds()).padStart(2, '0');
 
-  const passkey = config.passkey || 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919';
-  const password = Buffer.from(`${config.shortcode}${passkey}${timestamp}`).toString('base64');
+  const password = Buffer.from(`${config.shortcode}${config.passkey}${timestamp}`).toString('base64');
 
   const payload = {
     BusinessShortCode: config.shortcode,
@@ -131,7 +143,7 @@ async function initiateStkPush({ phone, amount, packageId, packageName, macAddre
     PartyA: normalizedPhone,
     PartyB: config.shortcode,
     PhoneNumber: normalizedPhone,
-    CallBackURL: config.callbackUrl || 'https://example.com/callback',
+    CallBackURL: config.callbackUrl || 'https://jaynet-wifi-billing.onrender.com/api/mpesa/callback',
     AccountReference: `JayNet-${packageName.replace(/\s+/g, '')}`,
     TransactionDesc: `JayNet Wi-Fi Package: ${packageName}`
   };
