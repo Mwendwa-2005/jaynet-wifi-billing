@@ -77,40 +77,6 @@ app.post('/api/stk-push', async (req, res) => {
       macAddress: macAddress || '00:00:00:00:00:00'
     });
 
-    // Handle Simulation Mode Auto-Approve ONLY IF explicitly in simulation mode
-    if (result.isSimulation) {
-      setTimeout(async () => {
-        try {
-          const mpesaReceipt = 'SIM' + Math.random().toString(36).substring(2, 10).toUpperCase();
-
-          const activation = await mikrotikService.activateHotspotUser({
-            phone,
-            macAddress,
-            packageItem: pkg,
-            durationHours: pkg.duration_hours
-          });
-
-          await db.run(
-            `UPDATE transactions 
-             SET status = 'COMPLETED', mpesa_receipt_number = ?, voucher_code = ?, result_desc = 'Simulation Payment Approved' 
-             WHERE checkout_request_id = ?`,
-            [mpesaReceipt, activation.voucherCode, result.checkoutRequestId]
-          );
-
-          broadcast({
-            type: 'PAYMENT_SUCCESS',
-            checkoutRequestId: result.checkoutRequestId,
-            phone,
-            packageName: pkg.name,
-            mpesaReceipt,
-            activation
-          });
-        } catch (simErr) {
-          console.error('[Simulation Auto-Approve Error]:', simErr);
-        }
-      }, 4000);
-    }
-
     res.json({
       success: true,
       checkoutRequestId: result.checkoutRequestId,
