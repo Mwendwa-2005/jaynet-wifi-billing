@@ -108,6 +108,12 @@ function openPaymentModal(packageId, packageName, price) {
   document.getElementById('modal-package-name').innerText = packageName;
   document.getElementById('modal-package-price').innerText = `KES ${price.toLocaleString()}`;
 
+  const submitBtn = document.getElementById('stk-submit-btn');
+  if (submitBtn) {
+    submitBtn.innerText = 'Pay with M-Pesa';
+    submitBtn.disabled = false;
+  }
+
   document.getElementById('payment-step-input').style.display = 'block';
   document.getElementById('payment-step-waiting').style.display = 'none';
   document.getElementById('payment-step-success').style.display = 'none';
@@ -130,10 +136,20 @@ function setupEventListeners() {
   document.getElementById('stk-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const phoneInput = document.getElementById('phone-number').value.trim();
-    if (!phoneInput || !selectedPackage) return;
+    if (!phoneInput) {
+      alert('Please enter a phone number.');
+      return;
+    }
+    if (!selectedPackage) {
+      alert('Please select a Wi-Fi package first.');
+      return;
+    }
 
-    document.getElementById('payment-step-input').style.display = 'none';
-    document.getElementById('payment-step-waiting').style.display = 'block';
+    const submitBtn = document.getElementById('stk-submit-btn');
+    if (submitBtn) {
+      submitBtn.innerText = 'Processing Request...';
+      submitBtn.disabled = true;
+    }
 
     try {
       const response = await fetch('/api/stk-push', {
@@ -149,18 +165,25 @@ function setupEventListeners() {
       const resData = await response.json();
 
       if (!resData.success) {
+        if (submitBtn) {
+          submitBtn.innerText = 'Pay with M-Pesa';
+          submitBtn.disabled = false;
+        }
         showFailedView(resData.error || 'Failed to trigger STK Push.');
         return;
       }
 
       currentCheckoutRequestId = resData.checkoutRequestId;
 
+      document.getElementById('payment-step-input').style.display = 'none';
+      document.getElementById('payment-step-waiting').style.display = 'block';
+
       if (resData.isDemo) {
         document.getElementById('waiting-msg').innerText = `Demo Mode: Interactive M-Pesa STK prompt sent to ${phoneInput}.`;
         document.getElementById('demo-stk-phone-dialog').style.display = 'block';
         document.getElementById('waiting-spinner-box').style.display = 'none';
-        document.getElementById('demo-stk-amount').innerText = `KES ${resData.amount.toLocaleString()}`;
-        document.getElementById('demo-stk-phone').innerText = resData.phone;
+        document.getElementById('demo-stk-amount').innerText = `KES ${(resData.amount || selectedPackage.price).toLocaleString()}`;
+        document.getElementById('demo-stk-phone').innerText = resData.phone || phoneInput;
         document.getElementById('demo-mpesa-pin').focus();
       } else {
         document.getElementById('demo-stk-phone-dialog').style.display = 'none';
@@ -170,6 +193,10 @@ function setupEventListeners() {
 
       pollTransactionStatus(currentCheckoutRequestId);
     } catch (err) {
+      if (submitBtn) {
+        submitBtn.innerText = 'Pay with M-Pesa';
+        submitBtn.disabled = false;
+      }
       showFailedView('Network error triggering payment. Please try again.');
     }
   });
@@ -179,6 +206,12 @@ function setupEventListeners() {
     e.preventDefault();
     const pin = document.getElementById('demo-mpesa-pin').value.trim();
     if (!pin || !currentCheckoutRequestId) return;
+
+    const pinBtn = document.getElementById('demo-pin-submit-btn');
+    if (pinBtn) {
+      pinBtn.innerText = 'Verifying PIN...';
+      pinBtn.disabled = true;
+    }
 
     document.getElementById('demo-stk-phone-dialog').style.display = 'none';
     document.getElementById('waiting-spinner-box').style.display = 'block';
@@ -199,9 +232,17 @@ function setupEventListeners() {
           activation: data.activation
         });
       } else {
+        if (pinBtn) {
+          pinBtn.innerText = 'Send M-Pesa PIN';
+          pinBtn.disabled = false;
+        }
         showFailedView(data.error || 'PIN verification failed.');
       }
     } catch (err) {
+      if (pinBtn) {
+        pinBtn.innerText = 'Send M-Pesa PIN';
+        pinBtn.disabled = false;
+      }
       showFailedView('Error confirming M-Pesa PIN.');
     }
   });
