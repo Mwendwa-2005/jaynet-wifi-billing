@@ -76,12 +76,32 @@
         </form>
       </div>
 
-      <!-- Step 2: Waiting for M-Pesa PIN -->
+      <!-- Step 2: Waiting for M-Pesa PIN / Interactive Handset Dialog -->
       <div id="payment-step-waiting" style="display:none; text-align:center;">
         <h3 class="modal-title">Check Your Phone</h3>
-        <div class="loader-spinner"></div>
-        <p id="waiting-msg" style="color: var(--text-secondary); margin-bottom: 16px;"></p>
-        <p style="font-size:13px; color:var(--text-muted);">Please enter your Safaricom M-Pesa PIN on your phone handset to authorize the transaction.</p>
+        <p id="waiting-msg" style="color: var(--text-secondary); margin-bottom: 12px;"></p>
+
+        <!-- Interactive Handset STK Dialog for Demo -->
+        <div id="demo-stk-phone-dialog" style="display:none; background:#0d111a; border:2px solid var(--accent-cyan); border-radius: var(--radius-md); padding: 20px; margin: 16px 0; text-align:left; box-shadow: 0 10px 30px rgba(0,240,255,0.2);">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px; margin-bottom:12px;">
+            <strong style="color:var(--accent-emerald); font-size:14px;">📲 M-PESA STK PUSH (DEMO)</strong>
+            <span style="font-size:11px; background:rgba(0,240,255,0.2); color:var(--accent-cyan); padding:2px 8px; border-radius:10px;">SAFARICOM</span>
+          </div>
+          <p style="font-size:13px; color:var(--text-secondary); margin-bottom:4px;">Paybill: <strong style="color:#fff;">174379 (JayNet Hotspot)</strong></p>
+          <p style="font-size:13px; color:var(--text-secondary); margin-bottom:4px;">Amount: <strong id="demo-stk-amount" style="color:var(--accent-cyan);"></strong></p>
+          <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">Phone: <strong id="demo-stk-phone" style="color:#fff;"></strong></p>
+          
+          <form id="demo-pin-form">
+            <label class="form-label" style="font-size:12px; color:var(--text-secondary);">Enter M-Pesa PIN:</label>
+            <input type="password" id="demo-mpesa-pin" class="form-input" placeholder="Enter 4-Digit M-Pesa PIN" maxlength="4" required style="letter-spacing:6px; text-align:center; font-size:20px;">
+            <button type="submit" class="btn-submit" style="margin-top:12px; padding:12px;">Send M-Pesa PIN</button>
+          </form>
+        </div>
+
+        <div id="waiting-spinner-box">
+          <div class="loader-spinner"></div>
+          <p style="font-size:13px; color:var(--text-muted);">Awaiting Safaricom M-Pesa PIN confirmation...</p>
+        </div>
       </div>
 
       <!-- Step 3: Payment Success & Auto-Connect -->

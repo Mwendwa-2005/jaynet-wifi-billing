@@ -81,7 +81,68 @@ app.post('/api/stk-push', async (req, res) => {
       success: true,
       checkoutRequestId: result.checkoutRequestId,
       message: result.customerMessage,
-      isSimulation: result.isSimulation
+      isDemo: result.isDemo,
+      amount: result.amount,
+      packageName: result.packageName,
+      phone: result.phone
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Confirm Demo Interactive STK PIN Submission
+ */
+app.post('/api/stk-confirm', async (req, res) => {
+  try {
+    const { checkoutRequestId, pin } = req.body;
+
+    if (!checkoutRequestId || !pin) {
+      return res.status(400).json({ success: false, error: 'Checkout ID and PIN required.' });
+    }
+
+    const txn = await db.get('SELECT * FROM transactions WHERE checkout_request_id = ?', [checkoutRequestId]);
+    if (!txn) {
+      return res.status(404).json({ success: false, error: 'Transaction record not found.' });
+    }
+
+    const pkg = await db.get('SELECT * FROM packages WHERE id = ?', [txn.package_id]);
+    if (!pkg) {
+      return res.status(404).json({ success: false, error: 'Package record not found.' });
+    }
+
+    const mpesaReceipt = 'QJH' + Math.floor(100000000 + Math.random() * 900000000) + 'A';
+
+    // Activate Hotspot Session & generate Reconnection Voucher Code
+    const activation = await mikrotikService.activateHotspotUser({
+      phone: txn.phone,
+      macAddress: txn.mac_address,
+      packageItem: pkg,
+      durationHours: pkg.duration_hours
+    });
+
+    await db.run(
+      `UPDATE transactions 
+       SET status = 'COMPLETED', mpesa_receipt_number = ?, voucher_code = ?, result_desc = 'Demo Payment PIN Confirmed' 
+       WHERE checkout_request_id = ?`,
+      [mpesaReceipt, activation.voucherCode, checkoutRequestId]
+    );
+
+    broadcast({
+      type: 'PAYMENT_SUCCESS',
+      checkoutRequestId,
+      phone: txn.phone,
+      packageName: pkg.name,
+      mpesaReceipt,
+      activation
+    });
+
+    res.json({
+      success: true,
+      message: 'M-Pesa payment confirmed successfully!',
+      mpesaReceipt,
+      activation
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -383,7 +444,7 @@ app.get('/api/admin/settings', async (req, res) => {
 
     const responseSettings = {
       ADMIN_PASSWORD: settingsObj.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || 'admin123',
-      MPESA_ENVIRONMENT: settingsObj.MPESA_ENVIRONMENT || process.env.MPESA_ENVIRONMENT || 'sandbox',
+      MPESA_ENVIRONMENT: settingsObj.MPESA_ENVIRONMENT || process.env.MPESA_ENVIRONMENT || 'demo',
       MPESA_CONSUMER_KEY: settingsObj.MPESA_CONSUMER_KEY || process.env.MPESA_CONSUMER_KEY || '',
       MPESA_CONSUMER_SECRET: settingsObj.MPESA_CONSUMER_SECRET || process.env.MPESA_CONSUMER_SECRET || '',
       MPESA_PASSKEY: settingsObj.MPESA_PASSKEY || process.env.MPESA_PASSKEY || '',

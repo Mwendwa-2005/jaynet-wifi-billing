@@ -56,7 +56,7 @@ async function fetchPackages() {
       return;
     }
 
-    grid.innerHTML = data.packages.map((pkg, index) => {
+    grid.innerHTML = data.packages.map((pkg) => {
       const isPopular = pkg.price === 10 || pkg.price === 2000;
       const isMonthly = pkg.duration_hours >= 720;
       return `
@@ -155,15 +155,54 @@ function setupEventListeners() {
 
       currentCheckoutRequestId = resData.checkoutRequestId;
 
-      if (resData.isSimulation) {
-        document.getElementById('waiting-msg').innerText = 'Simulation Mode Active: STK Push sent! Auto-approving payment in 4s...';
+      if (resData.isDemo) {
+        document.getElementById('waiting-msg').innerText = `Demo Mode: Interactive M-Pesa STK prompt sent to ${phoneInput}.`;
+        document.getElementById('demo-stk-phone-dialog').style.display = 'block';
+        document.getElementById('waiting-spinner-box').style.display = 'none';
+        document.getElementById('demo-stk-amount').innerText = `KES ${resData.amount.toLocaleString()}`;
+        document.getElementById('demo-stk-phone').innerText = resData.phone;
+        document.getElementById('demo-mpesa-pin').focus();
       } else {
+        document.getElementById('demo-stk-phone-dialog').style.display = 'none';
+        document.getElementById('waiting-spinner-box').style.display = 'block';
         document.getElementById('waiting-msg').innerText = `STK Push sent to ${phoneInput}. Check your phone handset and enter your M-Pesa PIN!`;
       }
 
       pollTransactionStatus(currentCheckoutRequestId);
     } catch (err) {
       showFailedView('Network error triggering payment. Please try again.');
+    }
+  });
+
+  // Demo Interactive PIN Submission Form
+  document.getElementById('demo-pin-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pin = document.getElementById('demo-mpesa-pin').value.trim();
+    if (!pin || !currentCheckoutRequestId) return;
+
+    document.getElementById('demo-stk-phone-dialog').style.display = 'none';
+    document.getElementById('waiting-spinner-box').style.display = 'block';
+    document.getElementById('waiting-msg').innerText = 'Verifying M-Pesa PIN & Activating Wi-Fi Session...';
+
+    try {
+      const res = await fetch('/api/stk-confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checkoutRequestId: currentCheckoutRequestId, pin })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        showSuccessView({
+          packageName: selectedPackage?.name,
+          mpesaReceipt: data.mpesaReceipt,
+          activation: data.activation
+        });
+      } else {
+        showFailedView(data.error || 'PIN verification failed.');
+      }
+    } catch (err) {
+      showFailedView('Error confirming M-Pesa PIN.');
     }
   });
 

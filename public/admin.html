@@ -337,11 +337,13 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Daraja Environment</label>
+            <label class="form-label">System Payment Mode</label>
             <select id="set-mpesa-env" class="form-input" style="background:#1a1d28;">
-              <option value="sandbox">Sandbox (Testing)</option>
-              <option value="production">Production (Live Payments)</option>
+              <option value="demo">Client Presentation Demo Mode (Interactive Handset STK Dialog)</option>
+              <option value="sandbox">Safaricom Sandbox (Developer Testing)</option>
+              <option value="production">Production (Live Real M-Pesa Payments)</option>
             </select>
+            <small style="color:var(--text-muted); font-size:11px; margin-top:4px; display:block;">Use Demo Mode for client presentation until your Till number is registered!</small>
           </div>
           <div class="form-group">
             <label class="form-label">Consumer Key</label>
