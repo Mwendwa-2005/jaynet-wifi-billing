@@ -96,7 +96,7 @@ async function fetchPackages() {
     }).join('');
   } catch (err) {
     console.error('Error fetching packages:', err);
-    grid.innerHTML = '<p style="text-align:center; grid-column: 1/-1; color: #ff5252;">Failed to load Wi-Fi packages. Make sure server is running.</p>';
+    grid.innerHTML = '<p style="text-align:center; grid-column: 1/-1; color: var(--accent-rose);">Failed to load Wi-Fi packages. Make sure server is running.</p>';
   }
 }
 
@@ -137,7 +137,7 @@ function setupEventListeners() {
     e.preventDefault();
     const phoneInput = document.getElementById('phone-number').value.trim();
     if (!phoneInput) {
-      alert('Please enter a phone number.');
+      alert('Please enter your phone number.');
       return;
     }
     if (!selectedPackage) {
@@ -147,7 +147,7 @@ function setupEventListeners() {
 
     const submitBtn = document.getElementById('stk-submit-btn');
     if (submitBtn) {
-      submitBtn.innerText = 'Processing Request...';
+      submitBtn.innerText = 'Processing STK Push...';
       submitBtn.disabled = true;
     }
 
@@ -179,7 +179,7 @@ function setupEventListeners() {
       document.getElementById('payment-step-waiting').style.display = 'block';
 
       if (resData.isDemo) {
-        document.getElementById('waiting-msg').innerText = `Demo Mode: Interactive M-Pesa STK prompt sent to ${phoneInput}.`;
+        document.getElementById('waiting-msg').innerText = `Demo Mode: Interactive STK prompt sent to ${phoneInput}.`;
         document.getElementById('demo-stk-phone-dialog').style.display = 'block';
         document.getElementById('waiting-spinner-box').style.display = 'none';
         document.getElementById('demo-stk-amount').innerText = `KES ${(resData.amount || selectedPackage.price).toLocaleString()}`;
@@ -188,7 +188,7 @@ function setupEventListeners() {
       } else {
         document.getElementById('demo-stk-phone-dialog').style.display = 'none';
         document.getElementById('waiting-spinner-box').style.display = 'block';
-        document.getElementById('waiting-msg').innerText = `STK Push sent to ${phoneInput}. Check your phone handset and enter your M-Pesa PIN!`;
+        document.getElementById('waiting-msg').innerText = `STK Push sent to ${phoneInput}. Check your phone screen and enter your M-Pesa PIN!`;
       }
 
       pollTransactionStatus(currentCheckoutRequestId);
@@ -233,14 +233,14 @@ function setupEventListeners() {
         });
       } else {
         if (pinBtn) {
-          pinBtn.innerText = 'Send M-Pesa PIN';
+          pinBtn.innerText = 'Confirm M-Pesa PIN';
           pinBtn.disabled = false;
         }
         showFailedView(data.error || 'PIN verification failed.');
       }
     } catch (err) {
       if (pinBtn) {
-        pinBtn.innerText = 'Send M-Pesa PIN';
+        pinBtn.innerText = 'Confirm M-Pesa PIN';
         pinBtn.disabled = false;
       }
       showFailedView('Error confirming M-Pesa PIN.');
@@ -253,7 +253,7 @@ function setupEventListeners() {
     const codeOrPhone = document.getElementById('reconnect-code-input').value.trim();
     const resBox = document.getElementById('reconnect-result');
     resBox.style.display = 'block';
-    resBox.style.background = 'rgba(255,255,255,0.05)';
+    resBox.style.background = 'rgba(255,255,255,0.04)';
     resBox.style.color = '#fff';
     resBox.innerText = 'Verifying Reconnection Code...';
 
@@ -266,22 +266,22 @@ function setupEventListeners() {
       const data = await res.json();
 
       if (data.success) {
-        resBox.style.background = 'rgba(0,230,118,0.2)';
-        resBox.style.color = '#00e676';
+        resBox.style.background = 'rgba(16,185,129,0.15)';
+        resBox.style.color = 'var(--accent-emerald)';
         resBox.innerHTML = `
           <strong>✅ Reconnected Successfully!</strong><br>
           Package: <strong>${escapeHtml(data.session.package_name)}</strong><br>
           Remaining Time: <strong>${data.remainingHours} Hours</strong><br>
-          <small style="margin-top:8px; display:block;">Your internet connection is now active.</small>
+          <small style="margin-top:8px; display:block; color:var(--text-secondary);">Your internet connection is now active.</small>
         `;
       } else {
-        resBox.style.background = 'rgba(255,82,82,0.2)';
-        resBox.style.color = '#ff5252';
+        resBox.style.background = 'rgba(244,63,94,0.15)';
+        resBox.style.color = 'var(--accent-rose)';
         resBox.innerText = data.error || 'Reconnection failed.';
       }
     } catch (err) {
-      resBox.style.background = 'rgba(255,82,82,0.2)';
-      resBox.style.color = '#ff5252';
+      resBox.style.background = 'rgba(244,63,94,0.15)';
+      resBox.style.color = 'var(--accent-rose)';
       resBox.innerText = 'Network error verifying code.';
     }
   });
