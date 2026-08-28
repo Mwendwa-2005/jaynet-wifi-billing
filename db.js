@@ -129,11 +129,7 @@ function initDB() {
         value TEXT NOT NULL
       )
     `, () => {
-      db.get("SELECT COUNT(*) as count FROM settings WHERE key = 'MPESA_ENVIRONMENT'", (err, row) => {
-        if (!err && row.count === 0) {
-          db.run("INSERT INTO settings (key, value) VALUES ('MPESA_ENVIRONMENT', 'demo')");
-        }
-      });
+      db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('MPESA_ENVIRONMENT', 'sandbox')");
     });
   });
 }

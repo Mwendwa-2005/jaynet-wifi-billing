@@ -20,9 +20,8 @@ function normalizePhoneNumber(phone) {
  */
 async function getMpesaConfig() {
   const envSetting = await db.get("SELECT value FROM settings WHERE key = 'MPESA_ENVIRONMENT'");
-  const envVal = (envSetting?.value || process.env.MPESA_ENVIRONMENT || 'demo').trim().toLowerCase();
-  const isSandbox = envVal === 'sandbox';
-  const isDemo = envVal === 'demo';
+  const envVal = (envSetting?.value || process.env.MPESA_ENVIRONMENT || 'sandbox').trim().toLowerCase();
+  const isSandbox = envVal === 'sandbox' || envVal === 'demo';
 
   const dbKey = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_CONSUMER_KEY'"))?.value;
   const dbSecret = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_CONSUMER_SECRET'"))?.value;
@@ -30,18 +29,18 @@ async function getMpesaConfig() {
   const dbShortcode = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_SHORTCODE'"))?.value;
   const dbCallback = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_CALLBACK_URL'"))?.value;
 
-  const consumerKey = (dbKey || process.env.MPESA_CONSUMER_KEY || '').trim();
-  const consumerSecret = (dbSecret || process.env.MPESA_CONSUMER_SECRET || '').trim();
-  const passkey = (dbPasskey || process.env.MPESA_PASSKEY || (isSandbox ? 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919' : '')).trim();
-  const shortcode = (dbShortcode || process.env.MPESA_SHORTCODE || (isSandbox ? '174379' : '174379')).trim();
+  // Default Safaricom Sandbox Keys so STK Push ALWAYS calls Safaricom Daraja API
+  const consumerKey = (dbKey || process.env.MPESA_CONSUMER_KEY || 'Vyj8TOAXnQVAlVbfJ4ypmlOfGMJ4siwOcAGFcu8NcYRBvWRs').trim();
+  const consumerSecret = (dbSecret || process.env.MPESA_CONSUMER_SECRET || 'rN7eD0zR8Rz6vW2Q').trim();
+  const passkey = (dbPasskey || process.env.MPESA_PASSKEY || 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919').trim();
+  const shortcode = (dbShortcode || process.env.MPESA_SHORTCODE || '174379').trim();
   const callbackUrl = (dbCallback || process.env.MPESA_CALLBACK_URL || 'https://jaynet-wifi-billing.onrender.com/api/mpesa/callback').trim();
 
-  const baseUrl = isSandbox
-    ? 'https://sandbox.safaricom.co.ke'
-    : 'https://api.safaricom.co.ke';
+  const baseUrl = envVal === 'production'
+    ? 'https://api.safaricom.co.ke'
+    : 'https://sandbox.safaricom.co.ke';
 
   return {
-    isDemo,
     isSandbox,
     consumerKey,
     consumerSecret,
@@ -57,9 +56,6 @@ async function getMpesaConfig() {
  */
 async function getOAuthToken() {
   const config = await getMpesaConfig();
-  if (!config.consumerKey || !config.consumerSecret || config.consumerKey === 'YOUR_DARJA_CONSUMER_KEY') {
-    throw new Error('Safaricom M-Pesa credentials not configured. Please enter your Consumer Key & Secret in Admin Settings.');
-  }
 
   const auth = Buffer.from(`${config.consumerKey}:${config.consumerSecret}`).toString('base64');
   try {
@@ -81,7 +77,7 @@ async function getOAuthToken() {
 }
 
 /**
- * Initiate Daraja STK Push Request or Demo Interactive STK
+ * Initiate Daraja STK Push Request directly to Safaricom Daraja API
  */
 async function initiateStkPush({ phone, amount, packageId, packageName, macAddress }) {
   const normalizedPhone = normalizePhoneNumber(phone);
@@ -90,32 +86,6 @@ async function initiateStkPush({ phone, amount, packageId, packageName, macAddre
   }
 
   const config = await getMpesaConfig();
-
-  const hasCredentials = config.consumerKey && 
-                         config.consumerSecret && 
-                         config.consumerKey !== 'YOUR_DARJA_CONSUMER_KEY';
-
-  // Demo / Staging Mode (Interactive Handset STK Simulation for Client Presentation)
-  if (config.isDemo || !hasCredentials) {
-    console.log(`[M-Pesa DEMO] Interactive Client Presentation STK Push for ${normalizedPhone}`);
-    const mockCheckoutId = 'ws_CO_DEMO_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-
-    await db.run(
-      `INSERT INTO transactions (phone, amount, package_id, package_name, checkout_request_id, mac_address, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'PENDING')`,
-      [normalizedPhone, amount, packageId, packageName, mockCheckoutId, macAddress]
-    );
-
-    return {
-      success: true,
-      checkoutRequestId: mockCheckoutId,
-      customerMessage: 'M-Pesa STK Prompt Dispatched.',
-      isDemo: true,
-      amount,
-      packageName,
-      phone: normalizedPhone
-    };
-  }
 
   // REAL Safaricom Daraja STK Push Execution
   console.log(`[M-Pesa LIVE] Triggering Real STK Push for ${normalizedPhone} to Safaricom Daraja API (${config.baseUrl})...`);
@@ -160,12 +130,12 @@ async function initiateStkPush({ phone, amount, packageId, packageName, macAddre
       [normalizedPhone, amount, packageId, packageName, checkoutRequestId, macAddress]
     );
 
-    console.log(`[M-Pesa LIVE] STK Push Dispatched Successfully! CheckoutID: ${checkoutRequestId}`);
+    console.log(`[M-Pesa LIVE] STK Push Dispatched Successfully to Safaricom! CheckoutID: ${checkoutRequestId}`);
 
     return {
       success: true,
       checkoutRequestId,
-      customerMessage: response.data.CustomerMessage || 'STK Push sent! Please check your phone and enter your M-Pesa PIN.',
+      customerMessage: response.data.CustomerMessage || 'STK Push sent! Please check your phone screen and enter your M-Pesa PIN.',
       isDemo: false
     };
   } catch (error) {
