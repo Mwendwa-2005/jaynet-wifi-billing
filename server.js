@@ -19,13 +19,20 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+/**
+ * Health Check Endpoint for Render / Cloud Services
+ */
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
 // WebSocket Connection Manager & Broadcast
 const clients = new Set();
 wss.on('connection', (ws) => {
   clients.add(ws);
   ws.send(JSON.stringify({ type: 'CONNECTED', message: 'JayNet Real-time WebSocket Service Connected.' }));
 
-  ws.onclose = () => clients.delete(ws));
+  ws.onclose = () => clients.delete(ws);
 });
 
 function broadcast(data) {
@@ -444,7 +451,7 @@ app.get('/api/admin/settings', async (req, res) => {
 
     const responseSettings = {
       ADMIN_PASSWORD: settingsObj.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || 'admin123',
-      MPESA_ENVIRONMENT: settingsObj.MPESA_ENVIRONMENT || process.env.MPESA_ENVIRONMENT || 'demo',
+      MPESA_ENVIRONMENT: settingsObj.MPESA_ENVIRONMENT || process.env.MPESA_ENVIRONMENT || 'sandbox',
       MPESA_CONSUMER_KEY: settingsObj.MPESA_CONSUMER_KEY || process.env.MPESA_CONSUMER_KEY || '',
       MPESA_CONSUMER_SECRET: settingsObj.MPESA_CONSUMER_SECRET || process.env.MPESA_CONSUMER_SECRET || '',
       MPESA_PASSKEY: settingsObj.MPESA_PASSKEY || process.env.MPESA_PASSKEY || '',
@@ -490,15 +497,15 @@ app.post('/api/admin/test-mikrotik', async (req, res) => {
 });
 
 /**
- * Start Server
+ * Start Server (Explicitly bind to 0.0.0.0 for Render Docker / Container Health Checks)
  */
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`
 ============================================================
 ⚡ JayNet Wi-Fi Billing System Server Online!
 ------------------------------------------------------------
-🌐 Captive Portal Homepage : http://localhost:${PORT}
-⚙️ Admin Management Panel : http://localhost:${PORT}/admin.html
+🌐 Captive Portal Homepage : http://0.0.0.0:${PORT}
+⚙️ Admin Management Panel : http://0.0.0.0:${PORT}/admin.html
 ============================================================
   `);
 });
