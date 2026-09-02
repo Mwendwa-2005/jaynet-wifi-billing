@@ -15,86 +15,78 @@ function normalizePhoneNumber(phone) {
   return cleaned;
 }
 
+// Safaricom Sandbox Guaranteed Credentials
+const SANDBOX_KEY = 'Vyj8TOAXnQVAlVbfJ4ypmlOfGMJ4siwOcAGFcu8NcYRBvWRs';
+const SANDBOX_SECRET = 'rN7eD0zR8Rz6vW2Q';
+const SANDBOX_PASSKEY = 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919';
+const SANDBOX_SHORTCODE = '174379';
+
 /**
  * Get Daraja API Base URL depending on environment setting
  */
 async function getMpesaConfig() {
   const envSetting = await db.get("SELECT value FROM settings WHERE key = 'MPESA_ENVIRONMENT'");
   const envVal = (envSetting?.value || process.env.MPESA_ENVIRONMENT || 'sandbox').trim().toLowerCase();
-  const isSandbox = envVal === 'sandbox' || envVal === 'demo';
 
-  const dbKey = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_CONSUMER_KEY'"))?.value;
-  const dbSecret = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_CONSUMER_SECRET'"))?.value;
-  const dbPasskey = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_PASSKEY'"))?.value;
-  const dbShortcode = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_SHORTCODE'"))?.value;
-  const dbCallback = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_CALLBACK_URL'"))?.value;
+  if (envVal === 'production') {
+    const dbKey = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_CONSUMER_KEY'"))?.value;
+    const dbSecret = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_CONSUMER_SECRET'"))?.value;
+    const dbPasskey = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_PASSKEY'"))?.value;
+    const dbShortcode = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_SHORTCODE'"))?.value;
+    const dbCallback = (await db.get("SELECT value FROM settings WHERE key = 'MPESA_CALLBACK_URL'"))?.value;
 
-  // Default Safaricom Sandbox Keys
-  const defaultKey = 'Vyj8TOAXnQVAlVbfJ4ypmlOfGMJ4siwOcAGFcu8NcYRBvWRs';
-  const defaultSecret = 'rN7eD0zR8Rz6vW2Q';
+    const consumerKey = (dbKey || process.env.MPESA_CONSUMER_KEY || '').trim();
+    const consumerSecret = (dbSecret || process.env.MPESA_CONSUMER_SECRET || '').trim();
+    const passkey = (dbPasskey || process.env.MPESA_PASSKEY || '').trim();
+    const shortcode = (dbShortcode || process.env.MPESA_SHORTCODE || '').trim();
+    const callbackUrl = (dbCallback || process.env.MPESA_CALLBACK_URL || 'https://jaynet-wifi-billing.onrender.com/api/mpesa/callback').trim();
 
-  const consumerKey = (dbKey && dbKey.length > 10 ? dbKey : (process.env.MPESA_CONSUMER_KEY || defaultKey)).trim();
-  const consumerSecret = (dbSecret && dbSecret.length > 5 ? dbSecret : (process.env.MPESA_CONSUMER_SECRET || defaultSecret)).trim();
-  const passkey = (dbPasskey || process.env.MPESA_PASSKEY || 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919').trim();
-  const shortcode = (dbShortcode || process.env.MPESA_SHORTCODE || '174379').trim();
-  const callbackUrl = (dbCallback || process.env.MPESA_CALLBACK_URL || 'https://jaynet-wifi-billing.onrender.com/api/mpesa/callback').trim();
+    if (consumerKey.length > 10 && consumerSecret.length > 5) {
+      return {
+        isSandbox: false,
+        consumerKey,
+        consumerSecret,
+        passkey,
+        shortcode,
+        callbackUrl,
+        baseUrl: 'https://api.safaricom.co.ke'
+      };
+    }
+  }
 
-  const baseUrl = envVal === 'production'
-    ? 'https://api.safaricom.co.ke'
-    : 'https://sandbox.safaricom.co.ke';
-
+  // DEFAULT & SANDBOX MODE: ALWAYS USE GUARANTEED WORKING SAFARICOM SANDBOX KEYS
   return {
-    isSandbox,
-    consumerKey,
-    consumerSecret,
-    passkey,
-    shortcode,
-    callbackUrl,
-    baseUrl
+    isSandbox: true,
+    consumerKey: SANDBOX_KEY,
+    consumerSecret: SANDBOX_SECRET,
+    passkey: SANDBOX_PASSKEY,
+    shortcode: SANDBOX_SHORTCODE,
+    callbackUrl: 'https://jaynet-wifi-billing.onrender.com/api/mpesa/callback',
+    baseUrl: 'https://sandbox.safaricom.co.ke'
   };
 }
 
 /**
- * Generate OAuth Token from Safaricom Daraja API with automatic fallback
+ * Generate OAuth Token from Safaricom Daraja API
  */
 async function getOAuthToken() {
   const config = await getMpesaConfig();
 
-  const primaryAuth = Buffer.from(`${config.consumerKey}:${config.consumerSecret}`).toString('base64');
+  const auth = Buffer.from(`${config.consumerKey}:${config.consumerSecret}`).toString('base64');
   try {
     const response = await axios.get(`${config.baseUrl}/oauth/v1/generate?grant_type=client_credentials`, {
       headers: {
-        Authorization: `Basic ${primaryAuth}`
+        'Authorization': `Basic ${auth}`
       }
     });
 
     if (response.data && response.data.access_token) {
       return response.data.access_token;
     }
-  } catch (primaryErr) {
-    console.warn('[M-Pesa Primary Key Failed, trying Sandbox fallback...]:', primaryErr.response?.data || primaryErr.message);
-  }
-
-  // Fallback to verified Safaricom Sandbox Credentials
-  const fallbackKey = 'Vyj8TOAXnQVAlVbfJ4ypmlOfGMJ4siwOcAGFcu8NcYRBvWRs';
-  const fallbackSecret = 'rN7eD0zR8Rz6vW2Q';
-  const fallbackAuth = Buffer.from(`${fallbackKey}:${fallbackSecret}`).toString('base64');
-
-  try {
-    const fbResponse = await axios.get('https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials', {
-      headers: {
-        Authorization: `Basic ${fallbackAuth}`
-      }
-    });
-
-    if (fbResponse.data && fbResponse.data.access_token) {
-      console.log('[M-Pesa OAuth] Successfully generated token via Sandbox Fallback.');
-      return fbResponse.data.access_token;
-    }
-    throw new Error('OAuth token generation failed.');
-  } catch (fallbackErr) {
-    console.error('[M-Pesa OAuth Fatal Error]:', fallbackErr.response?.data || fallbackErr.message);
-    const apiError = fallbackErr.response?.data?.errorMessage || fallbackErr.response?.data?.error_description || fallbackErr.message;
+    throw new Error('No access token returned.');
+  } catch (error) {
+    console.error('[M-Pesa OAuth Error]:', error.response?.data || error.message);
+    const apiError = error.response?.data?.errorMessage || error.response?.data?.error_description || error.message;
     throw new Error(`Safaricom OAuth Error: ${apiError}`);
   }
 }
